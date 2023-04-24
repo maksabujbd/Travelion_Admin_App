@@ -1,0 +1,753 @@
+<!--<ng-template #template let-anchor>-->
+<!--  <span>{{ anchor.nativeElement.innerText }}</span>-->
+<!--</ng-template>-->
+
+<!--Grid Template-->
+
+<dx-data-grid
+  [dataSource]="gridData"
+  keyExpr="id"
+  [showBorders]="true"
+  [focusedRowEnabled]="true"
+  [focusedRowIndex]="0"
+  [columnAutoWidth]="true"
+  [columnHidingEnabled]="true"
+  (onExporting)="onExporting($event)"
+  [columns]="configuration.columnDefinations"
+  (onSelectionChanged)="selectionChanged($event)"
+>
+  <dxo-search-panel
+    [visible]="true"
+    [width]="240"
+    placeholder="Search..."
+  ></dxo-search-panel>
+  <dxo-filter-row [visible]="true"></dxo-filter-row>
+  <dxo-header-filter [visible]="true"></dxo-header-filter>
+  <dxo-sorting mode="single"></dxo-sorting>
+  <dxo-paging [pageSize]="10"></dxo-paging>
+  <dxo-pager
+    [visible]="true"
+    [allowedPageSizes]="[5, 10, 20, 50, 100, 1000, 'all']"
+    displayMode="full"
+    [showPageSizeSelector]="true"
+    [showInfo]="true"
+    [showNavigationButtons]="true"
+  >
+  </dxo-pager>
+  <dxo-export [enabled]="true" [allowExportSelectedData]="true"></dxo-export>
+  <dxo-export
+    [enabled]="true"
+    [formats]="['pdf']"
+    [allowExportSelectedData]="true"
+  ></dxo-export>
+  <!-- toolbar -->
+
+      <dxo-toolbar>
+        <dxi-item location="after">
+          <div *dxTemplate class="informer">
+        <dx-button text="Export to PDF" icon="exportpdf" *ngIf="configuration.isPDFExportEnabled"
+                   (onClick)="onExporting($event)"></dx-button>
+          </div>
+        </dxi-item>
+        <dxi-item location="after">
+          <div *dxTemplate class="informer">
+        <dx-button text="Export to Excel" icon="exportxlsx" *ngIf="configuration.isExcelExportEnable"></dx-button>
+        </div>
+        </dxi-item>
+        <dxi-item location="after">
+          <div *dxTemplate class="informer">
+        <dx-button text="Add New" icon="add" *ngIf="configuration.isAddEnabled"
+                (click)="onAddNew($event, AddEditModal)">
+        </dx-button>
+          </div>
+        </dxi-item>
+      </dxo-toolbar>
+  <!-- end of toolbar -->
+
+  <!--     fields declarations -->
+  <ng-container *ngFor="let col of configuration.columnDefinations">
+    <dxi-column
+      *ngIf="col.isDisplayInGrid && col.gridWidth > 4"
+      dataField="{{ col.fieldName }}"
+      title="{{ col.caption }}"
+      media="(min-width: 750px)"
+      width="{{col.gridWidth}}%"
+    >
+    </dxi-column>
+    <dxi-column
+      *ngIf="col.isDisplayInGrid && col.gridWidth === 3"
+      dataField="{{ col.fieldName }}"
+      title="{{ col.caption }}"
+      media="(min-width: 750px)"
+      width="{{col.gridWidth}}%"
+    >
+      <ng-template let-dataItem let-rowIndex="rowIndex">
+        <div style="display: flex; align-items: center">
+          <div
+            style="
+              border: 1px solid white;
+              width: 2rem;
+              height: 2rem;
+              border-radius: 0.5rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+            [style.background-color]="dataItem.backgroundColorCodeCode"
+            [style.color]="dataItem.textColorCodeCode"
+          >
+            {{ dataItem.code }}
+          </div>
+        </div>
+      </ng-template>
+    </dxi-column>
+    <dxi-column
+      *ngIf="col.isDisplayInGrid && col.gridWidth === 2"
+      dataField="{{ col.fieldName }}"
+      title="{{ col.caption }}"
+      media="(min-width: 750px)"
+      width="{{col.gridWidth}}%"
+    >
+      <ng-template let-dataItem let-rowIndex="rowIndex">
+        <div style="display: flex; align-items: center">
+          <div
+            style="
+              border: 1px solid white;
+              padding: 0px 2rem;
+              height: 2rem;
+              border-radius: 0.5rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+            [style.background-color]="dataItem.backgroundColorCodeCode"
+            [style.color]="dataItem.textColorCodeCode"
+          >
+            {{ dataItem.name }}
+          </div>
+        </div>
+      </ng-template>
+    </dxi-column>
+  </ng-container>
+
+  <!--  edit and delete button on grid-->
+  <dxi-column
+    media="(min-width: 750px)"
+    cellTemplate="cellTemplate"
+    title="Actions"
+    *ngIf="configuration.isEditEnabled || configuration.isDeleteEnabled"
+  >
+  </dxi-column>
+  <div *dxTemplate="let dataItem of 'cellTemplate'">
+      <dx-button
+        icon="edit"
+        text="edit"
+        style="margin-right: 1rem"
+        (onClick)="onEdit($event, dataItem, AddEditModal)"
+        *ngIf="configuration.isEditEnabled"
+      >
+      </dx-button>
+      <dx-button
+        icon="trash"
+        text="delete"
+        (click)="onDelete($event, dataItem)"
+        *ngIf="configuration.isDeleteEnabled"
+      >
+      </dx-button>
+  </div>
+  <!-- ends of fileds declarations -->
+</dx-data-grid>
+
+
+<!--Modal Template-->
+<ng-template #AddEditModal let-modal>
+  <div class="modal-header">
+    <h6 class="modal-title">Add/Edit {{configuration.name}}</h6>
+    <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <form class="k-form" [formGroup]="form">
+      <div class="col-md-12 p-0" *ngIf="configuration.columnDefinations">
+
+        <div class="col-md-12 p-0"
+             *ngIf="configuration.toggleSection != undefined && configuration.toggleSection.length > 0">
+          <div class="row ">
+            <div id="accordion" class="mat-1 col-md-12 mat-2 mab-2">
+              <div class="colform pay-3 mat-2 mab-2" *ngFor="let section of configuration.toggleSection">
+
+                <a data-toggle="collapse" href="#{{section.link}}" role="button" aria-expanded="false"
+                   class="col-md-12 colform-subject">
+                  <div class="colform-subject__title">
+                    {{section.sectionName}}
+                    <div [ngClass]="{'active': section.isCompleted !== undefined && section.isCompleted === true}">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                           class="bi bi-check" viewBox="0 0 16 16">
+                        <path
+                          d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="colform-subject__subtitle">
+                    {{section.description}}
+                  </div>
+                  <div class="colform-subject__arrow" style="top: -20px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                         class="bi bi-caret-right-fill" viewBox="0 0 16 16">
+                      <path
+                        d="M12.14 8.753l-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+                    </svg>
+                  </div>
+                </a>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="col-md-12 p-0" *ngIf="configuration.toggleSection == undefined">
+          <div class="row">
+            <ng-container *ngFor="let col of configuration.columnDefinations; index as iCol">
+
+
+              <div
+                [ngClass]="{'col-md-4': configuration.totalColumns === 3, 'col-md-12':configuration.totalColumns !== 3 }"
+                class="col-md-4 mb-2" *ngIf="col.isDisplayInForm">
+
+                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == textInputType">
+
+                  <div class="dx-field">
+                    <div class="dx-field-label">{{col.caption}}:</div>
+                    <div class="dx-field-value">
+                      <dx-text-box
+                        formControlName="{{col.fieldName}}"
+                        [readOnly]="col.isReadOnly"
+                        [hoverStateEnabled]="false"
+                        placeholder="Enter {{col.caption}}"
+                        [showClearButton]="true"
+                        class="{{col.fieldName}}"
+                        validationError="'initial'"
+                      ></dx-text-box>
+                    </div>
+                    <dxi-validation-rule
+                      type="required"
+                      message="Error: {{col.caption}} is required">
+                    </dxi-validation-rule>
+                  </div>
+
+
+                </div>
+                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == colorPicker">
+
+                  <div class="dx-field">
+                    <div class="dx-field-label">{{col.caption}}:</div>
+                    <div class="dx-field-value">
+                      <dx-color-box
+                        formControlName="{{col.fieldName}}"
+                        validationError="'initial'"
+                      ></dx-color-box>
+                    </div>
+                    <dxi-validation-rule
+                      type="required"
+                      message="Error: {{col.caption}} is required">
+                    </dxi-validation-rule>
+                  </div>
+
+
+                </div>
+                <!-- month -->
+                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == month">
+
+                  <div class="dx-field">
+                    <div class="dx-field-label">{{col.caption}}:</div>
+                    <div class="dx-field-value">
+                      <dx-date-box
+                        formControlName="{{col.fieldName}}"
+                        [readOnly]="col.isReadOnly"
+                        [displayFormat]="'MM'"
+                        validationError="'initial'"
+                      ></dx-date-box>
+                    </div>
+                    <dxi-validation-rule
+                      type="required"
+                      message="Error: {{col.caption}} is required">
+                    </dxi-validation-rule>
+                  </div>
+
+
+                  <!-- year -->
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == year">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-date-box
+                          formControlName="{{col.fieldName}}"
+                          [readOnly]="col.isReadOnly"
+                          [displayFormat]="'yyyy'"
+                          validationError="'initial'"
+                        ></dx-date-box>
+                      </div>
+                      <dxi-validation-rule
+                        type="required"
+                        message="Error: {{col.caption}} is required">
+                      </dxi-validation-rule>
+                    </div>
+
+
+                  </div>
+                  <!-- end of year -->
+
+
+                  <!-- date -->
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == date">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-date-box
+                          formControlName="{{col.fieldName}}"
+                          [readOnly]="col.isReadOnly"
+                          [displayFormat]="'dd/MM/yyyy'"
+                          validationError="'initial'"
+                        ></dx-date-box>
+                      </div>
+                      <dxi-validation-rule
+                        type="required"
+                        message="Error: {{col.caption}} is required">
+                      </dxi-validation-rule>
+                    </div>
+
+
+                  </div>
+                  <!-- end of date picker -->
+
+                  <!-- date time -->
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == dateTime">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-date-box
+                          formControlName="{{col.fieldName}}"
+                          [readOnly]="col.isReadOnly"
+                          [displayFormat]="'dd/MM/yyyy hh:mm a'"
+                          validationError="'initial'"
+                        ></dx-date-box>
+                      </div>
+                      <dxi-validation-rule
+                        type="required"
+                        message="Error: {{col.caption}} is required">
+                      </dxi-validation-rule>
+                    </div>
+
+
+
+                  </div>
+                  <!-- end of date picker -->
+
+
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == textAreaInputType">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-text-area
+                          formControlName="{{col.fieldName}}"
+                          [readOnly]="col.isReadOnly"
+                          placeholder="Enter {{col.caption}}"
+                          [height]="col.textAreaRowsNo ? col.textAreaRowsNo : 3"
+                          validationError="'initial'"
+                        ></dx-text-area>
+                      </div>
+                      <dxi-validation-rule
+                        type="required"
+                        message="Error: {{col.caption}} is required">
+                      </dxi-validation-rule>
+                    </div>
+
+
+                  </div>
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == multiSelectInputType">
+
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-drop-down-box
+                          formArrayName="{{col.fieldName}}"
+                          [items]="col.dropdownDataSource"
+                          [displayExpr]="col.dropdownValueColumnName"
+                          [valueExpr]="col.dropdownKeyColumnName"
+                          placeholder="Enter {{col.caption}}"
+                          [showClearButton]="true"
+                        ></dx-drop-down-box>
+                        <dxi-validation-rule
+                          type="required"
+                          message="Error: {{col.caption}} is required">
+                        </dxi-validation-rule>
+                      </div>
+                    </div>
+
+
+                  </div>
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == dropDownInputType">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-select-box
+                          formArrayName="{{col.fieldName}}"
+                          [items]="col.dropdownDataSource"
+                          [displayExpr]="col.dropdownValueColumnName"
+                          [valueExpr]="col.dropdownKeyColumnName"
+                          placeholder="Enter {{col.caption}}"
+                          [showClearButton]="true"
+                        ></dx-select-box>
+                        <dxi-validation-rule
+                          type="required"
+                          message="Error: {{col.caption}} is required">
+                        </dxi-validation-rule>
+                      </div>
+                    </div>
+
+
+                  </div>
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == dropDownListAddNewItem">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-select-box
+                          formArrayName="{{col.fieldName}}"
+                          [items]="paramDataInDDLAddNewItem[iCol].data"
+                          [displayExpr]="col.dropdownValueColumnName"
+                          [valueExpr]="col.dropdownKeyColumnName"
+                          placeholder="Enter {{col.caption}}"
+                          [showClearButton]="true"
+                          (onChange)="handleFilterOnDDLANI($event, iCol)"
+                        >
+
+                          <ng-template kendoDropDownListNoDataTemplate>
+                            <div>
+                              No data found.
+                              <ng-container *ngIf="paramDataInDDLAddNewItem[iCol].filter">Add new {{col.caption}} - "{{
+                                paramDataInDDLAddNewItem[iCol].filter }}".
+                              </ng-container>
+                              <br/>
+                              <button *ngIf="paramDataInDDLAddNewItem[iCol].filter" class="k-button"
+                                      (click)="addNewDDLANI(iCol, col.fieldName)">
+                                Add new
+                              </button>
+                            </div>
+                          </ng-template>
+                        </dx-select-box>
+                        <dxi-validation-rule
+                          type="required"
+                          message="Error: {{col.caption}} is required">
+                        </dxi-validation-rule>
+                      </div>
+                    </div>
+
+
+                  </div>
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == searchFiledInputType">
+
+                    <div class="dx-field">
+                      <div class="dx-field-label">{{col.caption}}:</div>
+                      <div class="dx-field-value">
+                        <dx-select-box
+                          formArrayName="{{col.fieldName}}"
+                          [items]="col.dropdownDataSource"
+                          [displayExpr]="col.dropdownValueColumnName"
+                          [valueExpr]="col.dropdownKeyColumnName"
+                          placeholder="Enter {{col.caption}}"
+                          [showClearButton]="true"
+                        ></dx-select-box>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == checkBoxInputType">
+
+                    div class="dx-field">
+
+                    <div class="dx-field-value">
+                      <dx-check-box
+                        id="{{col.fieldName}}"
+                        formControlName="{{col.fieldName}}"
+                      ></dx-check-box>
+                      <div class="dx-field-label" style="padding-left: 16px !important;">{{col.caption}}:</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </ng-container>
+
+
+          </div>
+        </div>
+
+
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <dx-button type="button" (click)="closeAddEdit()">Close</dx-button>
+    <dx-button type="submit" (click)="onSubmit()">Save</dx-button>
+  </div>
+
+
+</ng-template>
+
+<!--Delete Dialog Template-->
+
+<dxo-popup title="Please confirm" *ngIf="displayDeleteDialog" (close)="closeDeleteDialog()" [minWidth]="250"
+           [width]="450">
+  <div class="">
+    Are you really want to delete this record?
+<!--    <kendo-dialog-actions>-->
+      <dx-button (click)="closeDeleteDialog()">No</dx-button>
+      <dx-button (click)="deleteData()">Yes</dx-button>
+<!--    </kendo-dialog-actions>-->
+  </div>
+
+</dxo-popup>
+
+<dx-toast [(visible)]="isVisible" [type]="type" [message]="message">
+</dx-toast>
+
+
+<!--<dxo-popup title="Add/Edit1 {{configuration.name}}" *ngIf="displayAddEditForm" (close)="closeAddEdit()"-->
+<!--           [minWidth]="250" [width]="configuration.dialogWidth">-->
+<!--  <div *dxTemplate="let data of 'content'">-->
+<!--  <div *ngIf="configuration.columnDefinations" class="nModal">-->
+<!--    <form [formGroup]="form" (ngSubmit)="onSubmit()">-->
+<!--      <div class="col-md-12 p-0">-->
+<!--        <div class="row">-->
+<!--          <ng-container *ngFor="let col of configuration.columnDefinations">-->
+<!--            <div-->
+<!--              [ngClass]="{'col-md-4': configuration.totalColumns === 3, 'col-md-12':configuration.totalColumns !== 3 }"-->
+<!--              class="col-md-4" *ngIf="col.isDisplayInForm">-->
+
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == textInputType">-->
+<!--                &lt;!&ndash; textbox &ndash;&gt;-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-text-box-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      [hoverStateEnabled]="false"-->
+<!--                      placeholder="Enter {{col.caption}}"-->
+<!--                      [showClearButton]="true"-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-text-box>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+<!--              </div>-->
+
+<!--              &lt;!&ndash; month &ndash;&gt;-->
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == month">-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-date-box-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      [displayFormat]="'MM'"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-date-box>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--              &lt;!&ndash; end of month &ndash;&gt;-->
+
+<!--              &lt;!&ndash; year &ndash;&gt;-->
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == year">-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-date-box-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      [displayFormat]="'yyyy'"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-date-box>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--              &lt;!&ndash; end of year &ndash;&gt;-->
+
+
+<!--              &lt;!&ndash; date &ndash;&gt;-->
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == date">-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-date-box-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      [displayFormat]="'dd/MM/yyyy'"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-date-box>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--              &lt;!&ndash; end of date picker &ndash;&gt;-->
+
+<!--              &lt;!&ndash; date time &ndash;&gt;-->
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == dateTime">-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-date-box-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      [displayFormat]="'dd/MM/yyyy hh:mm a'"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-date-box>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+
+<!--              </div>-->
+<!--              &lt;!&ndash; end of date picker &ndash;&gt;-->
+
+
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == textAreaInputType">-->
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-text-area-->
+<!--                      formControlName="{{col.fieldName}}"-->
+<!--                      [readOnly]="col.isReadOnly"-->
+<!--                      placeholder="Enter {{col.caption}}"-->
+<!--                      [height]="col.textAreaRowsNo ? col.textAreaRowsNo : 3"-->
+<!--                      validationError="'initial'"-->
+<!--                    ></dx-text-area>-->
+<!--                  </div>-->
+<!--                  <dxi-validation-rule-->
+<!--                    type="required"-->
+<!--                    message="Error: {{col.caption}} is required">-->
+<!--                  </dxi-validation-rule>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--              <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == multiSelectInputType">-->
+
+
+<!--                <div class="dx-field">-->
+<!--                  <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                  <div class="dx-field-value">-->
+<!--                    <dx-drop-down-box-->
+<!--                      formArrayName="{{col.fieldName}}"-->
+<!--                      [items]="col.dropdownDataSource"-->
+<!--                      [displayExpr]="col.dropdownValueColumnName"-->
+<!--                      [valueExpr]="col.dropdownKeyColumnName"-->
+<!--                      placeholder="Enter {{col.caption}}"-->
+<!--                      [showClearButton]="true"-->
+<!--                    ></dx-drop-down-box>-->
+<!--                    <dxi-validation-rule-->
+<!--                      type="required"-->
+<!--                      message="Error: {{col.caption}} is required">-->
+<!--                    </dxi-validation-rule>-->
+<!--                  </div>-->
+<!--                </div>-->
+<!--                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == dropDownInputType">-->
+<!--                  &lt;!&ndash; dropdown select &ndash;&gt;-->
+
+
+<!--                  <div class="dx-field">-->
+<!--                    <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                    <div class="dx-field-value">-->
+<!--                      <dx-select-box-->
+<!--                        formArrayName="{{col.fieldName}}"-->
+<!--                        [items]="col.dropdownDataSource"-->
+<!--                        [displayExpr]="col.dropdownValueColumnName"-->
+<!--                        [valueExpr]="col.dropdownKeyColumnName"-->
+<!--                        placeholder="Enter {{col.caption}}"-->
+<!--                        [showClearButton]="true"-->
+<!--                      ></dx-select-box>-->
+<!--                      <dxi-validation-rule-->
+<!--                        type="required"-->
+<!--                        message="Error: {{col.caption}} is required">-->
+<!--                      </dxi-validation-rule>-->
+<!--                    </div>-->
+<!--                  </div>-->
+
+<!--                </div>-->
+<!--                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == searchFiledInputType">-->
+
+<!--                  <div class="dx-field">-->
+<!--                    <div class="dx-field-label">{{col.caption}}:</div>-->
+<!--                    <div class="dx-field-value">-->
+<!--                      <dx-select-box-->
+<!--                        formArrayName="{{col.fieldName}}"-->
+<!--                        [items]="col.dropdownDataSource"-->
+<!--                        [displayExpr]="col.dropdownValueColumnName"-->
+<!--                        [valueExpr]="col.dropdownKeyColumnName"-->
+<!--                        placeholder="Enter {{col.caption}}"-->
+<!--                        [showClearButton]="true"-->
+<!--                      ></dx-select-box>-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                </div>-->
+<!--                <div class="col-md-12" *ngIf="col.isDisplayInForm && col.inputType == checkBoxInputType">-->
+
+<!--                  &lt;!&ndash; checkbox  &ndash;&gt;-->
+
+<!--                  <div class="dx-field">-->
+
+<!--                    <div class="dx-field-value">-->
+<!--                      <dx-check-box-->
+<!--                        id="{{col.fieldName}}"-->
+<!--                        formControlName="{{col.fieldName}}"-->
+<!--                      ></dx-check-box>-->
+<!--                      <div class="dx-field-label" style="padding-left: 16px !important;">{{col.caption}}:</div>-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--            </div>-->
+<!--          </ng-container>-->
+
+
+<!--        </div>-->
+<!--      </div>-->
+
+
+<!--&lt;!&ndash;      <kendo-dialog-actions>&ndash;&gt;-->
+<!--        <dx-button (click)="closeAddEdit()">Close</dx-button>-->
+<!--        <dx-button>Save</dx-button>-->
+<!--&lt;!&ndash;      </kendo-dialog-actions>&ndash;&gt;-->
+<!--    </form>-->
+<!--  </div>-->
+<!--  </div>-->
+<!--</dxo-popup>-->
+
